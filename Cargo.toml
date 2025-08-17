@@ -1,0 +1,13 @@
+[package]
+name = "proctap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.99"
+axum = "0.8.4"
+clap = { version = "4.5.45", features = ["derive"] }
+prometheus = "0.14.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
+tokio = { version = "1.47.1", features = ["full"] }
