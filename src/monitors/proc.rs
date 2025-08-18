@@ -1,5 +1,6 @@
 use std::{any, collections::BTreeMap, fs};
 
+use log::{debug, info};
 use prometheus::{Gauge, GaugeVec, Opts, Registry};
 
 use crate::monitor::Monitor;
@@ -84,8 +85,10 @@ impl Monitor for ProcessSchedMonitor {
         let proc_name = self.proc_name_filter.clone();
 
         let pids = self.scan_pids()?;
+        debug!("Found {} pids", pids.len());
 
         for pid in pids {
+
             let label = &[proc_name.as_str()];
             let proc = self.read_sched(&pid)?;
             
