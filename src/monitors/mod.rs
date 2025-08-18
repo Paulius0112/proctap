@@ -1,2 +1,2 @@
-pub mod net;
 pub mod proc;
+pub mod snmp;

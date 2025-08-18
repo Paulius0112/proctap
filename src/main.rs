@@ -3,8 +3,8 @@ use std::time::Duration;
 use std::vec;
 
 use crate::monitor::{Monitor, MonitorKind};
-use crate::monitors::net::SNMPMonitor;
 use crate::monitors::proc::ProcessSchedMonitor;
+use crate::monitors::snmp::SNMPMonitor;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -24,7 +24,7 @@ struct Cli {
     monitors: Vec<MonitorKind>,
     #[arg(long, default_value_t = 5)]
     interval: u64,
-    #[arg(long, default_value = "target/debug/pinger")]
+    #[arg(long, default_value = "ping")]
     proc_name: String,
 }
 
@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
     let registry = Arc::new(Registry::new());
 
     let enabled = if cli.monitors.is_empty() {
-        vec![MonitorKind::Sched, MonitorKind::Net]
+        vec![MonitorKind::Sched, MonitorKind::Snmp]
     } else {
         cli.monitors.clone()
     };
@@ -61,10 +61,9 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::Sched => {
                 monitors.push(Box::new(ProcessSchedMonitor::new(&registry, cli.proc_name.clone())?));
             }
-            MonitorKind::Net => {
+            MonitorKind::Snmp => {
                 monitors.push(Box::new(SNMPMonitor::new(&registry)?));
             }
-            _ => {}
         }
     }
 

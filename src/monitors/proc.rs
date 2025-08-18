@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs};
+use std::{fs, path::PathBuf};
 
 use log::debug;
 use prometheus::{GaugeVec, Opts, Registry};
@@ -12,12 +12,13 @@ pub struct ProcessSchedMonitor {
     nr_switches: GaugeVec,
     nr_involuntary_switches: GaugeVec,
     nr_voluntary_switches: GaugeVec,
+    sum_exec_runtime: GaugeVec,
 }
 
 impl ProcessSchedMonitor {
     pub fn new(registry: &Registry, proc_name: String) -> anyhow::Result<Self> {
         let make_gauge = |name, help| -> anyhow::Result<GaugeVec> {
-            let g = GaugeVec::new(Opts::new(name, help), &["proc"])?;
+            let g = GaugeVec::new(Opts::new(name, help), &["proc", "pid"])?;
 
             registry.register(Box::new(g.clone()))?;
             Ok(g)
@@ -35,42 +36,60 @@ impl ProcessSchedMonitor {
                 "proc_sched_nr_voluntary_switches",
                 "nr_voluntary_switches from /proc/<pid>/sched",
             )?,
+            sum_exec_runtime: make_gauge("proc_sum_exec_runtime", "sum_exec_runtime from /proc/<pid>/sched")?,
         })
     }
 
-    fn scan_pids(&self) -> anyhow::Result<Vec<String>> {
-        let mut pids: Vec<String> = Vec::new();
+    fn read_comm(pid: &u32) -> Option<String> {
+        let content = fs::read_to_string(format!("/proc/{pid}/comm")).ok()?;
+        Some(content.trim().to_string())
+    }
 
-        for entry in fs::read_dir("/proc")? {
-            match entry {
-                Ok(dir_entry) => {
-                    if !dir_entry.file_type()?.is_dir() {
-                        continue;
-                    }
-                    if dir_entry.file_name().to_string_lossy().parse::<u32>().is_err() {
-                        continue;
-                    }
-                    let path = dir_entry.path();
-                    let full_path = path.join("cmdline");
+    fn read_sched(pid: u32) -> Option<ProcessSched> {
+        let content = fs::read_to_string(format!("/proc/{pid}/sched")).ok()?;
+        Self::parse_sched(&content)
+    }
 
-                    if fs::read_to_string(full_path)?.contains(&self.proc_name_filter) {
-                        // Optimise this bit..
-                        let pid: String = dir_entry.file_name().to_string_lossy().to_string();
-                        pids.push(pid);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error reading directory content: {}", e);
-                }
+    fn parse_sched(content: &str) -> Option<ProcessSched> {
+        let mut nr_migrations: Option<u64> = None;
+        let mut nr_switches: Option<u64> = None;
+        let mut nr_involuntary_switches: Option<u64> = None;
+        let mut nr_voluntary_switches: Option<u64> = None;
+        let mut sum_exec_runtime: Option<f64> = None;
+
+        // skip header line
+        for line in content.lines().skip(1) {
+            let (k, v) = match line.split_once(':') {
+                Some((k, v)) => (k.trim(), v.trim()),
+                None => continue,
+            };
+
+            match k {
+                "se.nr_migrations" => nr_migrations = v.parse().ok(),
+                "nr_switches" => nr_switches = v.parse().ok(),
+                "nr_involuntary_switches" => nr_involuntary_switches = v.parse().ok(),
+                "nr_voluntary_switches" => nr_voluntary_switches = v.parse().ok(),
+                "se.sum_exec_runtime" => sum_exec_runtime = v.parse().ok(),
+                _ => {}
+            }
+
+            if nr_migrations.is_some()
+                && nr_switches.is_some()
+                && nr_involuntary_switches.is_some()
+                && nr_voluntary_switches.is_some()
+                && sum_exec_runtime.is_some()
+            {
+                break;
             }
         }
 
-        Ok(pids)
-    }
-
-    fn read_sched(&self, pid: &str) -> anyhow::Result<ProcessSched> {
-        let content = fs::read_to_string(format!("/proc/{}/sched", pid))?;
-        parse_process(content)
+        Some(ProcessSched {
+            nr_migrations: nr_migrations?,
+            nr_switches: nr_switches?,
+            nr_involuntary_switches: nr_involuntary_switches?,
+            nr_voluntary_switches: nr_voluntary_switches?,
+            sum_exec_runtime: sum_exec_runtime?,
+        })
     }
 }
 
@@ -80,74 +99,60 @@ impl Monitor for ProcessSchedMonitor {
     }
 
     fn collect(&mut self) -> anyhow::Result<()> {
-        let proc_name = self.proc_name_filter.clone();
+        let mut matched = 0usize;
 
-        let pids = self.scan_pids()?;
-        debug!("Found {} pids", pids.len());
+        for entry in fs::read_dir(PathBuf::from("/proc"))? {
+            match entry {
+                Ok(e) => {
+                    if !e.file_type()?.is_dir() {
+                        continue;
+                    }
 
-        for pid in pids {
-            let label = &[proc_name.as_str()];
-            let proc = self.read_sched(&pid)?;
+                    let Ok(pid) = e.file_name().to_string_lossy().parse::<u32>() else {
+                        continue;
+                    };
 
-            self.nr_involuntary_switches
-                .with_label_values(label)
-                .set(proc.nr_involuntary_switches as f64);
-            self.nr_migrations
-                .with_label_values(label)
-                .set(proc.nr_migrations as f64);
-            self.nr_voluntary_switches
-                .with_label_values(label)
-                .set(proc.nr_voluntary_switches as f64);
-            self.nr_migrations
-                .with_label_values(label)
-                .set(proc.nr_migrations as f64);
+                    let Some(comm) = Self::read_comm(&pid) else {
+                        continue;
+                    };
+
+                    if !comm.contains(&self.proc_name_filter) {
+                        continue;
+                    };
+
+                    if let Some(s) = Self::read_sched(pid) {
+                        matched += 1;
+
+                        let pid_s = pid.to_string();
+                        let labels = &[comm.as_str(), pid_s.as_str()];
+
+                        self.nr_migrations.with_label_values(labels).set(s.nr_migrations as f64);
+                        self.nr_switches.with_label_values(labels).set(s.nr_switches as f64);
+                        self.nr_involuntary_switches
+                            .with_label_values(labels)
+                            .set(s.nr_involuntary_switches as f64);
+                        self.nr_voluntary_switches
+                            .with_label_values(labels)
+                            .set(s.nr_voluntary_switches as f64);
+                        self.sum_exec_runtime.with_label_values(labels).set(s.sum_exec_runtime);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error reading dir: {}", e);
+                }
+            }
         }
 
+        debug!("comm='{}' matched {} PIDs", self.proc_name_filter, matched);
         Ok(())
     }
 }
 
 #[derive(Debug)]
 struct ProcessSched {
-    nr_migrations: u32,
-    nr_switches: u32,
-    nr_involuntary_switches: u32,
-    nr_voluntary_switches: u32,
-    prio: u16,
-}
-
-impl ProcessSched {
-    fn from_map(vals: &BTreeMap<&str, &str>) -> Option<ProcessSched> {
-        Some(Self {
-            nr_migrations: vals.get("se.nr_migrations")?.parse().ok()?,
-            nr_switches: vals.get("nr_switches")?.parse().ok()?,
-            nr_involuntary_switches: vals.get("nr_involuntary_switches")?.parse().ok()?,
-            nr_voluntary_switches: vals.get("nr_voluntary_switches")?.parse().ok()?,
-            prio: vals.get("prio")?.parse().ok()?,
-        })
-    }
-}
-
-fn parse_process(content: String) -> anyhow::Result<ProcessSched> {
-    let mut lines = content.lines();
-
-    // Handle without unwrap
-    let header = lines.next().unwrap();
-
-    let mut vals = BTreeMap::<&str, &str>::new();
-
-    for line in lines {
-        if !line.contains(":") {
-            continue;
-        }
-
-        let row: Vec<&str> = line.trim().split(":").collect();
-        let key = row[0].trim();
-        let val = row[1].trim();
-
-        vals.insert(key, val);
-    }
-
-    // This shouldn't ever be None, update
-    Ok(ProcessSched::from_map(&vals).unwrap())
+    nr_migrations: u64,
+    nr_switches: u64,
+    nr_involuntary_switches: u64,
+    nr_voluntary_switches: u64,
+    sum_exec_runtime: f64,
 }
