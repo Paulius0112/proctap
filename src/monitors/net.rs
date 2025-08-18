@@ -5,26 +5,18 @@ use prometheus::{GaugeVec, Opts, Registry};
 
 use crate::monitor::Monitor;
 
-
-
 pub struct SNMPMonitor {
     path: PathBuf,
     udp: GaugeVec,
-    tcp: GaugeVec
-}   
+    tcp: GaugeVec,
+}
 
 impl SNMPMonitor {
     pub fn new(registry: &Registry) -> anyhow::Result<Self> {
-        let tcp = GaugeVec::new(
-            Opts::new("snmp_tcp", "TCP Stats from /proc/net/snmp"), 
-            &["key"]
-        )?;
+        let tcp = GaugeVec::new(Opts::new("snmp_tcp", "TCP Stats from /proc/net/snmp"), &["key"])?;
         registry.register(Box::new(tcp.clone()))?;
 
-        let udp = GaugeVec::new(
-            Opts::new("snmp_udp", "UDP Stats from /proc/net/snmp"), 
-            &["key"]
-        )?;
+        let udp = GaugeVec::new(Opts::new("snmp_udp", "UDP Stats from /proc/net/snmp"), &["key"])?;
         registry.register(Box::new(udp.clone()))?;
 
         Ok(Self {
@@ -41,7 +33,7 @@ impl SNMPMonitor {
         let mut lines = content.lines();
 
         while let Some(hdr) = lines.next() {
-            let Some(vals) = lines.next() else {break};
+            let Some(vals) = lines.next() else { break };
 
             let (proto_h, keys_str) = hdr.split_once(":").context("bad header line in /proc/net/snmp")?;
             let (proto_v, vals_str) = vals.split_once(":").context("bad value line in /proc/net/snmp")?;
@@ -82,10 +74,10 @@ impl Monitor for SNMPMonitor {
                 // Replace with enum
                 "Tcp" => {
                     self.tcp.with_label_values(&[key.to_string()]).set(val);
-                },
+                }
                 "Udp" => {
                     self.udp.with_label_values(&[key.to_string()]).set(val);
-                },
+                }
                 _ => {}
             }
         }

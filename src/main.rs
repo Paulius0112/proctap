@@ -1,25 +1,19 @@
-
 use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
-use std::{any, collections::BTreeMap, fmt::format, fs, process};
 
+use crate::monitor::{Monitor, MonitorKind};
+use crate::monitors::net::SNMPMonitor;
+use crate::monitors::proc::ProcessSchedMonitor;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
+use clap::Parser;
 use log::info;
 use prometheus::Registry;
 use prometheus::TextEncoder;
-use serde::Deserialize;
-use clap::Parser;
-use clap::ValueEnum;
-use tokio::net::unix::SocketAddr;
 use tokio::time::interval;
-use crate::monitor::{Monitor, MonitorKind};
-use crate::monitors::net::SNMPMonitor;
-use crate::monitors::proc::ProcessSchedMonitor;
-
 
 mod monitor;
 mod monitors;
@@ -66,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
         match kind {
             MonitorKind::Sched => {
                 monitors.push(Box::new(ProcessSchedMonitor::new(&registry, cli.proc_name.clone())?));
-            },
+            }
             MonitorKind::Net => {
                 monitors.push(Box::new(SNMPMonitor::new(&registry)?));
             }
@@ -76,7 +70,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/metrics", get(metrics_handler))
-        .with_state(AppState { registry: registry.clone() });
+        .with_state(AppState {
+            registry: registry.clone(),
+        });
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", 9000)).await?;
     info!("Serving Prometheus metrics on {:?}", listener);
@@ -85,7 +81,6 @@ async fn main() -> anyhow::Result<()> {
             eprintln!("metrics server error: {e:#}");
         }
     });
-
 
     let mut ticker = interval(Duration::from_secs(cli.interval));
     loop {
