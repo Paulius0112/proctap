@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::vec;
 
 use crate::monitor::{Monitor, MonitorKind};
+use crate::monitors::netdev_stat::NetSysfsStatsMonitor;
 use crate::monitors::proc::ProcessSchedMonitor;
 use crate::monitors::snmp::SNMPMonitor;
 use axum::extract::State;
@@ -50,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
     let registry = Arc::new(Registry::new());
 
     let enabled = if cli.monitors.is_empty() {
-        vec![MonitorKind::Sched, MonitorKind::Snmp]
+        vec![MonitorKind::Sched, MonitorKind::Snmp, MonitorKind::NetDev]
     } else {
         cli.monitors.clone()
     };
@@ -63,6 +64,9 @@ async fn main() -> anyhow::Result<()> {
             }
             MonitorKind::Snmp => {
                 monitors.push(Box::new(SNMPMonitor::new(&registry)?));
+            }
+            MonitorKind::NetDev => {
+                monitors.push(Box::new(NetSysfsStatsMonitor::new(&registry)?));
             }
         }
     }
