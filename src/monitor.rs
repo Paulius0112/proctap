@@ -3,6 +3,7 @@ use clap::ValueEnum;
 pub enum MonitorKind {
     Sched,
     Snmp,
+    NetDev,
 }
 
 pub trait Monitor {
