@@ -4,6 +4,7 @@ pub enum MonitorKind {
     Sched,
     Snmp,
     NetDev,
+    DiskStat,
 }
 
 pub trait Monitor {

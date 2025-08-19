@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::vec;
 
 use crate::monitor::{Monitor, MonitorKind};
+use crate::monitors::diskstat::DiskStatsMonitor;
 use crate::monitors::netdev_stat::NetSysfsStatsMonitor;
 use crate::monitors::proc::ProcessSchedMonitor;
 use crate::monitors::snmp::SNMPMonitor;
@@ -51,7 +52,12 @@ async fn main() -> anyhow::Result<()> {
     let registry = Arc::new(Registry::new());
 
     let enabled = if cli.monitors.is_empty() {
-        vec![MonitorKind::Sched, MonitorKind::Snmp, MonitorKind::NetDev]
+        vec![
+            MonitorKind::Sched,
+            MonitorKind::Snmp,
+            MonitorKind::NetDev,
+            MonitorKind::DiskStat,
+        ]
     } else {
         cli.monitors.clone()
     };
@@ -67,6 +73,9 @@ async fn main() -> anyhow::Result<()> {
             }
             MonitorKind::NetDev => {
                 monitors.push(Box::new(NetSysfsStatsMonitor::new(&registry)?));
+            }
+            MonitorKind::DiskStat => {
+                monitors.push(Box::new(DiskStatsMonitor::new(&registry)?));
             }
         }
     }
