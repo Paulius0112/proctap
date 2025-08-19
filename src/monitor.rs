@@ -6,6 +6,7 @@ pub enum MonitorKind {
     NetDev,
     DiskStat,
     Interrupts,
+    MemStat,
 }
 
 pub trait Monitor {
