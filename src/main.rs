@@ -4,6 +4,7 @@ use std::vec;
 
 use crate::monitor::{Monitor, MonitorKind};
 use crate::monitors::diskstat::DiskStatsMonitor;
+use crate::monitors::interrupts::InterruptsMonitor;
 use crate::monitors::netdev_stat::NetSysfsStatsMonitor;
 use crate::monitors::proc::ProcessSchedMonitor;
 use crate::monitors::snmp::SNMPMonitor;
@@ -57,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::Snmp,
             MonitorKind::NetDev,
             MonitorKind::DiskStat,
+            MonitorKind::Interrupts,
         ]
     } else {
         cli.monitors.clone()
@@ -76,6 +78,9 @@ async fn main() -> anyhow::Result<()> {
             }
             MonitorKind::DiskStat => {
                 monitors.push(Box::new(DiskStatsMonitor::new(&registry)?));
+            }
+            MonitorKind::Interrupts => {
+                monitors.push(Box::new(InterruptsMonitor::new(&registry)?));
             }
         }
     }
