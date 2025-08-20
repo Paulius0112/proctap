@@ -3,6 +3,8 @@ name = "proctap"
 version = "0.1.0"
 edition = "2021"
 
+rust-version = "1.88.0"
+
 [dependencies]
 anyhow = "1.0.99"
 axum = "0.8.4"
