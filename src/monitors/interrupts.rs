@@ -68,7 +68,7 @@ impl InterruptsMonitor {
             rows += 1;
         }
 
-        debug!("interrupts: updated {rows} rows ({} CPUs)", ncpus);
+        debug!("interrupts: updated {rows} rows ({ncpus} CPUs)");
         Ok(())
     }
 }
