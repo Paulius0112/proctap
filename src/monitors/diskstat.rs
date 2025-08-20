@@ -1,7 +1,10 @@
 use anyhow::Result;
 use log::debug;
 use prometheus::{GaugeVec, Opts, Registry};
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::monitor::Monitor;
 
@@ -48,7 +51,7 @@ impl DiskStatsMonitor {
     }
 
     #[inline]
-    fn is_partition(dev_path: &PathBuf) -> bool {
+    fn is_partition(dev_path: &Path) -> bool {
         dev_path.join("partition").exists()
     }
 

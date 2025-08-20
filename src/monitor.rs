@@ -9,6 +9,7 @@ pub enum MonitorKind {
     MemStat,
 }
 
+#[allow(dead_code)]
 pub trait Monitor {
     fn collect(&mut self) -> anyhow::Result<()>;
     fn name(&self) -> &'static &str;
