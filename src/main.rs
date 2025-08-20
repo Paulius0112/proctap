@@ -14,7 +14,7 @@ use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
 use clap::Parser;
-use log::info;
+use log::{error, info};
 use prometheus::Registry;
 use prometheus::TextEncoder;
 use tokio::time::interval;
@@ -97,10 +97,10 @@ async fn main() -> anyhow::Result<()> {
         });
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", 9000)).await?;
-    info!("Serving Prometheus metrics on {:?}", listener);
+    info!("Serving Prometheus metrics on {listener:?}");
     tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
-            eprintln!("metrics server error: {e:#}");
+            error!("metrics server error: {e:#}");
         }
     });
 
@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
         for mon in &mut monitors {
             if let Err(e) = mon.collect() {
-                eprintln!("Failed to collect metrics for: {e:#}");
+                error!("Failed to collect metrics for: {e:#}");
             }
         }
     }

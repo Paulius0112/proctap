@@ -1,5 +1,5 @@
-use anyhow::Result;
-use log::debug;
+use anyhow::{Context, Result};
+use log::{debug, error};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::{fs, path::PathBuf};
 
@@ -30,9 +30,13 @@ impl NetSysfsStatsMonitor {
     }
 
     #[inline]
-    fn read_u64(path: &PathBuf) -> Option<u64> {
-        let s = fs::read_to_string(path).ok()?;
-        s.trim().parse::<u64>().ok()
+    fn read_u64(path: &PathBuf) -> anyhow::Result<u64> {
+        let s = fs::read_to_string(path).with_context(|| format!("reading {path:?}"))?;
+        let v = s
+            .trim()
+            .parse::<u64>()
+            .with_context(|| format!("parsing u64 from {path:?}"))?;
+        Ok(v)
     }
 }
 
@@ -43,11 +47,13 @@ impl Monitor for NetSysfsStatsMonitor {
 
     fn collect(&mut self) -> Result<()> {
         let mut if_count = 0usize;
-        for entry in fs::read_dir(&self.root)? {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
+
+        let entries =
+            fs::read_dir(&self.root).with_context(|| format!("reading net class directory: {:?}", self.root))?;
+
+        for entry_res in entries {
+            let entry = entry_res.with_context(|| "iterating /sys/class/net entries".to_string())?;
+
             let iface = entry.file_name().to_string_lossy().to_string();
 
             if !self.include_lo && iface == "lo" {
@@ -59,22 +65,24 @@ impl Monitor for NetSysfsStatsMonitor {
             }
 
             let stats_dir = entry.path().join("statistics");
-            let Ok(dir_iter) = fs::read_dir(&stats_dir) else {
-                continue;
-            };
+            let dir_iter = fs::read_dir(&stats_dir)
+                .with_context(|| format!("reading statistics directory for {iface}: {stats_dir:?}"))?;
 
-            for stat in dir_iter {
-                let stat = match stat {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
+            for stat_res in dir_iter {
+                let stat = stat_res.with_context(|| format!("reading stat entry in {iface} ({stats_dir:?})"))?;
                 let key = stat.file_name().to_string_lossy().to_string();
                 let path = stat.path();
 
-                if let Some(val) = Self::read_u64(&path) {
-                    self.stats
-                        .with_label_values(&[iface.as_str(), key.as_str()])
-                        .set(val as f64);
+                match Self::read_u64(&path) {
+                    Ok(val) => {
+                        self.stats
+                            .with_label_values(&[iface.as_str(), key.as_str()])
+                            .set(val as f64);
+                    }
+                    Err(e) => {
+                        error!("net_sysfs_stats: failed to read {iface}/{key} at {path:?}: {e:#}");
+                        return Err(e);
+                    }
                 }
             }
 
