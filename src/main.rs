@@ -8,6 +8,7 @@ use crate::monitors::interrupts::InterruptsMonitor;
 use crate::monitors::memstat::MeminfoMonitor;
 use crate::monitors::netdev_stat::NetSysfsStatsMonitor;
 use crate::monitors::proc::ProcessSchedMonitor;
+use crate::monitors::queues::NetSysfsQueuesMonitor;
 use crate::monitors::snmp::SNMPMonitor;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -61,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::DiskStat,
             MonitorKind::Interrupts,
             MonitorKind::MemStat,
+            MonitorKind::NetDevQueues,
         ]
     } else {
         cli.monitors.clone()
@@ -86,6 +88,9 @@ async fn main() -> anyhow::Result<()> {
             }
             MonitorKind::MemStat => {
                 monitors.push(Box::new(MeminfoMonitor::new(&registry)?));
+            }
+            MonitorKind::NetDevQueues => {
+                monitors.push(Box::new(NetSysfsQueuesMonitor::new(&registry)?));
             }
         }
     }

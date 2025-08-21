@@ -4,6 +4,7 @@ pub enum MonitorKind {
     Sched,
     Snmp,
     NetDev,
+    NetDevQueues,
     DiskStat,
     Interrupts,
     MemStat,
