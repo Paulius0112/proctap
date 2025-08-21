@@ -11,6 +11,7 @@ use crate::monitors::proc::ProcessSchedMonitor;
 use crate::monitors::queues::NetSysfsQueuesMonitor;
 use crate::monitors::snmp::SNMPMonitor;
 use crate::monitors::softirqs::SoftirqsMonitor;
+use crate::monitors::softnet_stat::SoftnetStatMonitor;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -65,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::MemStat,
             MonitorKind::NetDevQueues,
             MonitorKind::SoftIrqs,
+            MonitorKind::SoftNetStat,
         ]
     } else {
         cli.monitors.clone()
@@ -96,6 +98,9 @@ async fn main() -> anyhow::Result<()> {
             }
             MonitorKind::SoftIrqs => {
                 monitors.push(Box::new(SoftirqsMonitor::new(&registry)?));
+            }
+            MonitorKind::SoftNetStat => {
+                monitors.push(Box::new(SoftnetStatMonitor::new(&registry)?));
             }
         }
     }

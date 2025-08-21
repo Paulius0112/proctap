@@ -6,3 +6,4 @@ pub mod proc;
 pub mod queues;
 pub mod snmp;
 pub mod softirqs;
+pub mod softnet_stat;
