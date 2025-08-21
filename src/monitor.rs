@@ -8,6 +8,7 @@ pub enum MonitorKind {
     DiskStat,
     Interrupts,
     MemStat,
+    SoftIrqs,
 }
 
 #[allow(dead_code)]

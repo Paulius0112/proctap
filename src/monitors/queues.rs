@@ -58,8 +58,7 @@ impl NetSysfsQueuesMonitor {
 
     fn scrape_queue_dir(&self, iface: &str, qtype: &str, qid: &str, qdir: &Path) -> Result<usize> {
         let mut count = 0usize;
-        let entries =
-            fs::read_dir(qdir).with_context(|| format!("reading queue dir {qdir:?} ({qtype}-{qid})"))?;
+        let entries = fs::read_dir(qdir).with_context(|| format!("reading queue dir {qdir:?} ({qtype}-{qid})"))?;
 
         for entry_res in entries {
             let entry = entry_res?;
@@ -161,9 +160,7 @@ impl Monitor for NetSysfsQueuesMonitor {
             if_count += 1;
         }
 
-        debug!(
-            "net_sysfs_queues: updated {if_count} ifaces, {q_count} queues (numeric files only)"
-        );
+        debug!("net_sysfs_queues: updated {if_count} ifaces, {q_count} queues (numeric files only)");
         Ok(())
     }
 }
