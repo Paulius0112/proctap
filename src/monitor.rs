@@ -9,6 +9,7 @@ pub enum MonitorKind {
     Interrupts,
     MemStat,
     SoftIrqs,
+    SoftNetStat,
 }
 
 #[allow(dead_code)]
