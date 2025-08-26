@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::{Context, Result};
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use prometheus::{GaugeVec, Opts, Registry};
 
 use crate::monitor::Monitor;
@@ -18,6 +18,7 @@ pub struct ProcessSchedMonitor {
 
 impl ProcessSchedMonitor {
     pub fn new(registry: &Registry, proc_name: String) -> Result<Self> {
+        info!("Enabled Proc monitor");
         let make_gauge = |name: &str, help: &str| -> Result<GaugeVec> {
             let g = GaugeVec::new(Opts::new(name, help), &["proc", "pid"])?;
             registry.register(Box::new(g.clone()))?;

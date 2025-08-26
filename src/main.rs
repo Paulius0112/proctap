@@ -4,6 +4,7 @@ use std::vec;
 
 use crate::monitor::{Monitor, MonitorKind};
 use crate::monitors::diskstat::DiskStatsMonitor;
+use crate::monitors::ethtool::EthtoolMonitor;
 use crate::monitors::interrupts::InterruptsMonitor;
 use crate::monitors::memstat::MeminfoMonitor;
 use crate::monitors::netdev_stat::NetSysfsStatsMonitor;
@@ -18,9 +19,9 @@ use axum::routing::get;
 use axum::Router;
 use clap::Parser;
 use log::{error, info};
-use prometheus::Registry;
 use prometheus::TextEncoder;
-use tokio::time::interval;
+use prometheus::{HistogramOpts, HistogramVec, Opts, Registry};
+use tokio::time::{interval, Instant};
 
 mod monitor;
 mod monitors;
@@ -56,6 +57,20 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let registry = Arc::new(Registry::new());
 
+    let scrape_hist = HistogramVec::new(
+        HistogramOpts {
+            common_opts: Opts::new(
+                "scrape_iteration_seconds",
+                "Total time for one scrape iteration across all monitors",
+            ),
+            buckets: vec![
+                0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5,
+            ],
+        },
+        &["kind"],
+    )?;
+    registry.register(Box::new(scrape_hist.clone()))?;
+
     let enabled = if cli.monitors.is_empty() {
         vec![
             MonitorKind::Sched,
@@ -67,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::NetDevQueues,
             MonitorKind::SoftIrqs,
             MonitorKind::SoftNetStat,
+            MonitorKind::Ethtool,
         ]
     } else {
         cli.monitors.clone()
@@ -102,6 +118,9 @@ async fn main() -> anyhow::Result<()> {
             MonitorKind::SoftNetStat => {
                 monitors.push(Box::new(SoftnetStatMonitor::new(&registry)?));
             }
+            MonitorKind::Ethtool => {
+                monitors.push(Box::new(EthtoolMonitor::new(&registry)?));
+            }
         }
     }
 
@@ -112,7 +131,9 @@ async fn main() -> anyhow::Result<()> {
         });
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", 9000)).await?;
-    info!("Serving Prometheus metrics on {listener:?}");
+    let addr = listener.local_addr()?;
+    info!("Serving Prometheus metrics on http://{addr}/metrics");
+
     tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
             error!("metrics server error: {e:#}");
@@ -123,10 +144,15 @@ async fn main() -> anyhow::Result<()> {
     loop {
         ticker.tick().await;
 
+        let iter_start = Instant::now();
+
         for mon in &mut monitors {
             if let Err(e) = mon.collect() {
                 error!("Failed to collect metrics for: {e:#}");
             }
         }
+
+        let iter_elapsed = iter_start.elapsed().as_secs_f64();
+        scrape_hist.with_label_values(&["all"]).observe(iter_elapsed);
     }
 }

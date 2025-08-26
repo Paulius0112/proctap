@@ -10,6 +10,7 @@ pub enum MonitorKind {
     MemStat,
     SoftIrqs,
     SoftNetStat,
+    Ethtool,
 }
 
 #[allow(dead_code)]

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::{
     fs,
@@ -16,6 +16,7 @@ pub struct NetSysfsQueuesMonitor {
 
 impl NetSysfsQueuesMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled Network Queues monitor");
         let metrics = GaugeVec::new(
             Opts::new(
                 "netdev_queue_stat",

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::debug;
+use log::{debug, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::fs;
 
@@ -11,6 +11,7 @@ pub struct InterruptsMonitor {
 
 impl InterruptsMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled Interrupts monitor");
         let metric = GaugeVec::new(
             Opts::new("interrupts", "Per-IRQ per-CPU interrupt counters from /proc/interrupts"),
             &["irq", "cpu", "name"],

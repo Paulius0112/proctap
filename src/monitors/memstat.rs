@@ -1,13 +1,10 @@
 use anyhow::Result;
-use log::debug;
+use log::{debug, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::fs;
 
 use crate::monitor::Monitor;
 
-/// Exposes /proc/meminfo as:
-///   meminfo_bytes{key="<...>"}  <bytes>   (for lines ending with kB)
-///   meminfo{key="<...>"}        <value>   (unitless counters)
 pub struct MeminfoMonitor {
     bytes: GaugeVec, // labels: key
     other: GaugeVec, // labels: key
@@ -15,6 +12,7 @@ pub struct MeminfoMonitor {
 
 impl MeminfoMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled MemStat monitor");
         let bytes = GaugeVec::new(
             Opts::new("meminfo_bytes", "Meminfo entries reported in kB, converted to bytes"),
             &["key"],

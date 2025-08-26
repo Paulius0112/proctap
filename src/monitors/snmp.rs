@@ -1,6 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::{Context, Ok};
+use log::info;
 use prometheus::{GaugeVec, Opts, Registry};
 
 use crate::monitor::Monitor;
@@ -13,6 +14,7 @@ pub struct SNMPMonitor {
 
 impl SNMPMonitor {
     pub fn new(registry: &Registry) -> anyhow::Result<Self> {
+        info!("Enabled Snmp monitor");
         let tcp = GaugeVec::new(Opts::new("snmp_tcp", "TCP Stats from /proc/net/snmp"), &["key"])?;
         registry.register(Box::new(tcp.clone()))?;
 

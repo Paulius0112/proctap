@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::fs;
 
@@ -11,6 +11,7 @@ pub struct SoftnetStatMonitor {
 
 impl SoftnetStatMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled SoftnetStats monitor");
         let metric = GaugeVec::new(
             Opts::new(
                 "softnet_stat",
