@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use log::{debug, error};
+use log::{debug, error, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::{fs, path::PathBuf};
 
@@ -13,6 +13,7 @@ pub struct NetSysfsStatsMonitor {
 
 impl NetSysfsStatsMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled NetDevStat monitor");
         let stats = GaugeVec::new(
             Opts::new(
                 "netdev_stat",

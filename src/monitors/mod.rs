@@ -1,4 +1,5 @@
 pub mod diskstat;
+pub mod ethtool;
 pub mod interrupts;
 pub mod memstat;
 pub mod netdev_stat;

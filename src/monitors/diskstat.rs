@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::debug;
+use log::{debug, info};
 use prometheus::{GaugeVec, Opts, Registry};
 use std::{
     fs,
@@ -7,10 +7,6 @@ use std::{
 };
 
 use crate::monitor::Monitor;
-
-// Exposes /sys/class/block/<dev>/stat as:
-//   disk_stat{dev="<dev>", key="<field>"} <value>
-// Base fields (kernel docs: Documentation/admin-guide/iostats.rst):
 
 pub struct DiskStatsMonitor {
     root: PathBuf,
@@ -22,6 +18,7 @@ pub struct DiskStatsMonitor {
 
 impl DiskStatsMonitor {
     pub fn new(registry: &Registry) -> Result<Self> {
+        info!("Enabled Diskstat monitor");
         let stats = GaugeVec::new(
             Opts::new("disk_stat", "Values from /sys/class/block/<dev>/stat (iostats)"),
             &["dev", "key"],
