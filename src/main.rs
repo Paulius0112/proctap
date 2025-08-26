@@ -32,8 +32,8 @@ struct Cli {
     monitors: Vec<MonitorKind>,
     #[arg(long, default_value_t = 5)]
     interval: u64,
-    #[arg(long, default_value = "ping")]
-    proc_name: String,
+    #[arg(long, value_delimiter = ',')]
+    proc_prefixes: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -92,7 +92,12 @@ async fn main() -> anyhow::Result<()> {
     for kind in enabled {
         match kind {
             MonitorKind::Sched => {
-                monitors.push(Box::new(ProcessSchedMonitor::new(&registry, cli.proc_name.clone())?));
+                if !cli.proc_prefixes.is_empty() {
+                    monitors.push(Box::new(ProcessSchedMonitor::new(
+                        &registry,
+                        cli.proc_prefixes.clone(),
+                    )?));
+                }
             }
             MonitorKind::Snmp => {
                 monitors.push(Box::new(SNMPMonitor::new(&registry)?));

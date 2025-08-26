@@ -1,14 +1,14 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::{Context, Result};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use prometheus::{GaugeVec, Opts, Registry};
 
 use crate::monitor::Monitor;
 
 #[derive(Clone)]
 pub struct ProcessSchedMonitor {
-    proc_name_filter: String,
+    proc_prefixes: Vec<String>,
     nr_migrations: GaugeVec,
     nr_switches: GaugeVec,
     nr_involuntary_switches: GaugeVec,
@@ -17,7 +17,7 @@ pub struct ProcessSchedMonitor {
 }
 
 impl ProcessSchedMonitor {
-    pub fn new(registry: &Registry, proc_name: String) -> Result<Self> {
+    pub fn new(registry: &Registry, proc_prefixes: Vec<String>) -> Result<Self> {
         info!("Enabled Proc monitor");
         let make_gauge = |name: &str, help: &str| -> Result<GaugeVec> {
             let g = GaugeVec::new(Opts::new(name, help), &["proc", "pid"])?;
@@ -26,7 +26,7 @@ impl ProcessSchedMonitor {
         };
 
         Ok(Self {
-            proc_name_filter: proc_name,
+            proc_prefixes,
             nr_migrations: make_gauge("proc_sched_nr_migrations", "se.nr_migrations from /proc/<pid>/sched")?,
             nr_switches: make_gauge("proc_sched_nr_switches", "nr_switches from /proc/<pid>/sched")?,
             nr_involuntary_switches: make_gauge(
@@ -136,7 +136,7 @@ impl Monitor for ProcessSchedMonitor {
                 e
             })?;
 
-            if !comm.starts_with(&self.proc_name_filter) {
+            if !self.proc_prefixes.iter().any(|proc| comm.starts_with(proc)) {
                 continue;
             }
 
@@ -161,9 +161,7 @@ impl Monitor for ProcessSchedMonitor {
         }
 
         if matched == 0 {
-            warn!("sched: no processes with prefix '{}' found", self.proc_name_filter);
-        } else {
-            debug!("comm prefix '{}' matched {} PIDs", self.proc_name_filter, matched);
+            debug!("No processes found with provided prefixes");
         }
 
         Ok(())
