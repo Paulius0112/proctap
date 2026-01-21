@@ -1,0 +1,25 @@
+# Proctap Configuration File
+# Use with: proctap --config proctap.toml
+
+# Server configuration
+port = 9100
+bind = "0.0.0.0"
+
+# Collection interval in seconds
+interval = 5
+
+# Monitors to enable (comment out to enable all)
+# monitors = [
+#     "memstat",
+#     "cpustat",
+#     "loadavg",
+#     "vmstat",
+#     "diskstat",
+#     "netdev",
+#     "uptime",
+#     "thermal"
+# ]
+
+# Process name prefixes for sched and proc_extended monitors
+# Only processes matching these prefixes will be monitored
+# proc_prefixes = ["nginx", "redis", "postgres", "mysql"]

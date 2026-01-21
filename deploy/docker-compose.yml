@@ -1,0 +1,48 @@
+# Proctap Test Environment
+# NOTE: This setup only works on Linux systems as proctap reads from /proc and /sys
+#
+# Usage:
+#   1. Build proctap: cargo build --release
+#   2. Start the stack: docker compose up -d
+#   3. Run proctap on the host: ./target/release/proctap --port 9100
+#   4. Access Grafana: http://localhost:3000 (admin/admin)
+#   5. Import the dashboard from examples/grafana-dashboard.json
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: proctap-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: proctap-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
