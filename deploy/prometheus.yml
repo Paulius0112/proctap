@@ -1,0 +1,18 @@
+# Prometheus configuration for proctap
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # Scrape proctap running on the host
+  - job_name: 'proctap'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+        labels:
+          instance: 'localhost'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

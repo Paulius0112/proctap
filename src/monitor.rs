@@ -1,6 +1,8 @@
 use clap::ValueEnum;
+
 #[derive(Debug, Clone, ValueEnum)]
 pub enum MonitorKind {
+    // Existing monitors
     Sched,
     Snmp,
     NetDev,
@@ -11,6 +13,33 @@ pub enum MonitorKind {
     SoftIrqs,
     SoftNetStat,
     Ethtool,
+    // CPU monitors
+    CpuStat,
+    LoadAvg,
+    CpuFreq,
+    CpuIdle,
+    SchedStat,
+    // Memory monitors
+    VmStat,
+    ZoneInfo,
+    BuddyInfo,
+    SlabInfo,
+    // Process monitors
+    ProcExtended,
+    // Network monitors
+    NetStat,
+    SockStat,
+    NetInfo,
+    // Block I/O monitors
+    BlkQueue,
+    BlkInflight,
+    // System monitors
+    Entropy,
+    FsStats,
+    Uptime,
+    Thermal,
+    // cgroup monitor
+    Cgroup,
 }
 
 #[allow(dead_code)]
